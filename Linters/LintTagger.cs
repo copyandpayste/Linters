@@ -6,6 +6,7 @@ using Microsoft.VisualStudio.Text.Tagging;
 using Microsoft.VisualStudio.Shell;
 using Linters;
 using System.Collections;
+using System.Threading;
 
 internal class LintTagger : ITagger<IErrorTag>
 {
@@ -19,6 +20,8 @@ internal class LintTagger : ITagger<IErrorTag>
 
     private IList<LintTag> tags;
 
+    private CancellationTokenSource cancellationTokenSource;
+
     public LintTagger(ITextBuffer buffer, ErrorListProvider errorListProvider, string fileName)
     {
         this.buffer = buffer;
@@ -28,7 +31,7 @@ internal class LintTagger : ITagger<IErrorTag>
         this.tags = new List<LintTag>();
         this.PopulateTags();
 
-        //this.errorListProvider.ErrorListChange += this.OnErrorListChange;
+        this.buffer.Changed += this.OnBufferChanged;
     }
 
     public event EventHandler<SnapshotSpanEventArgs> TagsChanged;
@@ -97,6 +100,32 @@ internal class LintTagger : ITagger<IErrorTag>
                 handler(this, new SnapshotSpanEventArgs(span));
             }
         }
+    }
+
+    private void OnBufferChanged(object sender, TextContentChangedEventArgs e)
+    {
+        if (this.cancellationTokenSource != null)
+        {
+            this.cancellationTokenSource.Cancel();
+        }
+
+        this.cancellationTokenSource = new CancellationTokenSource();
+        this.UpdateErrorsWithDelay(e.After, this.cancellationTokenSource.Token);
+    }
+
+    private void UpdateErrorsWithDelay(ITextSnapshot snapshot, CancellationToken token)
+    {
+        System.Threading.Tasks.Task.Run(async () =>
+        {
+            await System.Threading.Tasks.Task.Delay(500);
+
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
+
+            this.TagsChanged?.Invoke(this, new SnapshotSpanEventArgs(new SnapshotSpan(snapshot, 0, snapshot.Length)));
+        }, token);
     }
 
     private bool IsRelevant(EventArgs e)

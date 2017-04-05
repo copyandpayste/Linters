@@ -18,7 +18,7 @@
         {
             get
             {
-                return PredefinedErrorTypeNames.CompilerError;
+                return PredefinedErrorTypeNames.Warning;
             }
         }
 

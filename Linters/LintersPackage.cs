@@ -5,22 +5,22 @@
 //------------------------------------------------------------------------------
 
 using System;
-using System.ComponentModel.Design;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
 using System.Runtime.InteropServices;
-using Microsoft.VisualStudio;
-using Microsoft.VisualStudio.OLE.Interop;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
-using Microsoft.Win32;
-using Microsoft.VisualStudio.Text.Tagging;
-using Linters;
 using System.ComponentModel.Composition;
+using EnvDTE;
+using System.IO;
+using Microsoft.VisualStudio.Threading;
+using System.Text;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace Linters
 {
+
+    
     /// <summary>
     /// This is the class that implements the package exposed by this assembly.
     /// </summary>
@@ -65,17 +65,89 @@ namespace Linters
         [Export(typeof(ErrorListProvider))]
         internal static ErrorListProvider CurrentErrorListProvider { get; private set; }
 
+        private DTE dte;
+
+        private Solution solution;
+
         /// <summary>
         /// Initialization of the package; this method is called right after the package is sited, so this is the place
         /// where you can put all the initialization code that rely on services provided by VisualStudio.
         /// </summary>
-        protected override void Initialize()
+        protected override async void Initialize()
         {
             base.Initialize();
 
-            var errorListProvider = new ErrorListProvider(this);
+            CurrentErrorListProvider = new ErrorListProvider(this);
 
-            CurrentErrorListProvider = errorListProvider;
+            //Dte.Events.DocumentEvents.DocumentSaved
+            //FileSystemWatcher
+
+            this.dte = (DTE)GetService(typeof(DTE));
+            this.solution = this.dte.Solution;
+
+            this.dte.Events.SolutionEvents.Opened += SolutionOpened;
+            this.dte.Events.TextEditorEvents.LineChanged += LineChanged;    
+        }
+
+        private void SolutionOpened() {
+            foreach (Project project in this.solution.Projects)
+            {
+                var directory = Path.GetDirectoryName(project.FullName);
+
+                //check if projeect has .ts files
+
+                //check if project has tsconfig.json
+
+                //run tslint
+                using (var process = new System.Diagnostics.Process())
+                {
+                    process.StartInfo = new ProcessStartInfo
+                    {
+                        WorkingDirectory = directory,
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        CreateNoWindow = true,
+                        WindowStyle = ProcessWindowStyle.Hidden,
+                        FileName = "cmd.exe",
+                        Arguments = "/c stylelint **.scss --formatter json"
+                    };
+
+                    var outputBuilder = new StringBuilder();
+                    var errorBuilder = new StringBuilder();
+
+                    process.OutputDataReceived += (s, e) => outputBuilder.AppendLine(e.Data);
+                    process.ErrorDataReceived += (s, e) => errorBuilder.AppendLine(e.Data);
+
+                    process.Start();
+                    process.BeginOutputReadLine();
+                    process.BeginErrorReadLine();
+                    process.WaitForExit();
+
+                   JArray array = (JArray)JsonConvert.DeserializeObject(outputBuilder.ToString());
+
+                    foreach (JObject obj in array) {
+                        var error = new ErrorTask();
+                        error.Text = "some error";
+                        error.Line = 0;
+                        error.Column = 0;
+                        error.Document = obj.GetValue("source").ToString();
+                        CurrentErrorListProvider.Tasks.Add(error);
+                        CurrentErrorListProvider.Show();
+                    }
+                }
+
+                //check if project has .css, .scss, or .sass files
+
+                //check if project has .stylelintrc 
+
+                //run stylelint
+            }
+        }
+
+        public void LineChanged(TextPoint StartPoint, TextPoint EndPoint, int Hint)
+        {
+
         }
 
         #endregion
