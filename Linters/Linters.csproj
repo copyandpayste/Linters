@@ -51,11 +51,15 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="Linter.cs" />
     <Compile Include="LintTag.cs" />
     <Compile Include="LintTaggerProvider.cs" />
     <Compile Include="LintTagger.cs" />
     <Compile Include="LintersPackage.cs" />
+    <Compile Include="Logger.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="StyleLinter.cs" />
+    <Compile Include="TsLinter.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />

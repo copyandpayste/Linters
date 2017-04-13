@@ -16,6 +16,8 @@ using Microsoft.VisualStudio.Threading;
 using System.Text;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using System.Windows.Threading;
+using System.Threading.Tasks;
 
 namespace Linters
 {
@@ -60,8 +62,6 @@ namespace Linters
             // initialization is the Initialize method.
         }
 
-        #region Package Members
-
         [Export(typeof(ErrorListProvider))]
         internal static ErrorListProvider CurrentErrorListProvider { get; private set; }
 
@@ -73,83 +73,43 @@ namespace Linters
         /// Initialization of the package; this method is called right after the package is sited, so this is the place
         /// where you can put all the initialization code that rely on services provided by VisualStudio.
         /// </summary>
-        protected override async void Initialize()
+        protected override void Initialize()
         {
             base.Initialize();
 
             CurrentErrorListProvider = new ErrorListProvider(this);
+            dte = (DTE)GetService(typeof(DTE));
+            solution = dte.Solution;
 
-            //Dte.Events.DocumentEvents.DocumentSaved
-            //FileSystemWatcher
-
-            this.dte = (DTE)GetService(typeof(DTE));
-            this.solution = this.dte.Solution;
-
-            this.dte.Events.SolutionEvents.Opened += SolutionOpened;
-            this.dte.Events.TextEditorEvents.LineChanged += LineChanged;    
-        }
-
-        private void SolutionOpened() {
-            foreach (Project project in this.solution.Projects)
+            // Delay execution until VS is idle.
+            Dispatcher.CurrentDispatcher.BeginInvoke(new Action(() =>
             {
-                var directory = Path.GetDirectoryName(project.FullName);
-
-                //check if projeect has .ts files
-
-                //check if project has tsconfig.json
-
-                //run tslint
-                using (var process = new System.Diagnostics.Process())
+                // Then execute in a background thread.
+                System.Threading.Tasks.Task.Run(async () =>
                 {
-                    process.StartInfo = new ProcessStartInfo
+                    try
                     {
-                        WorkingDirectory = directory,
-                        UseShellExecute = false,
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true,
-                        CreateNoWindow = true,
-                        WindowStyle = ProcessWindowStyle.Hidden,
-                        FileName = "cmd.exe",
-                        Arguments = "/c stylelint **.scss --formatter json"
-                    };
-
-                    var outputBuilder = new StringBuilder();
-                    var errorBuilder = new StringBuilder();
-
-                    process.OutputDataReceived += (s, e) => outputBuilder.AppendLine(e.Data);
-                    process.ErrorDataReceived += (s, e) => errorBuilder.AppendLine(e.Data);
-
-                    process.Start();
-                    process.BeginOutputReadLine();
-                    process.BeginErrorReadLine();
-                    process.WaitForExit();
-
-                   JArray array = (JArray)JsonConvert.DeserializeObject(outputBuilder.ToString());
-
-                    foreach (JObject obj in array) {
-                        var error = new ErrorTask();
-                        error.Text = "some error";
-                        error.Line = 0;
-                        error.Column = 0;
-                        error.Document = obj.GetValue("source").ToString();
-                        CurrentErrorListProvider.Tasks.Add(error);
-                        CurrentErrorListProvider.Show();
+                        await LintAsync();
                     }
-                }
-
-                //check if project has .css, .scss, or .sass files
-
-                //check if project has .stylelintrc 
-
-                //run stylelint
-            }
+                    catch (Exception ex)
+                    {
+                        Logger.Log(ex);
+                    }
+                });
+            }), DispatcherPriority.ApplicationIdle, null);
         }
 
-        public void LineChanged(TextPoint StartPoint, TextPoint EndPoint, int Hint)
+        public async System.Threading.Tasks.Task LintAsync()
         {
-
+            await System.Threading.Tasks.Task.Run(() => {
+                foreach (Project project in solution.Projects)
+                {
+                    //var tsLinter = new TsLinter(CurrentErrorListProvider);
+                    var styleLinter = new StyleLinter(CurrentErrorListProvider);
+                    //tsLinter.Run(project);
+                    styleLinter.Run(project);
+                }
+            });
         }
-
-        #endregion
     }
 }
