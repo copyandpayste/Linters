@@ -51,7 +51,10 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="Extensions\ServiceProviderExtensions.cs" />
+    <Compile Include="LintCommand.cs" />
     <Compile Include="Linter.cs" />
+    <Compile Include="LintErrorProvider.cs" />
     <Compile Include="LintTag.cs" />
     <Compile Include="LintTaggerProvider.cs" />
     <Compile Include="LintTagger.cs" />
@@ -70,6 +73,10 @@
     </None>
   </ItemGroup>
   <ItemGroup>
+    <VSCTCompile Include="LintersPackage.vsct">
+      <ResourceName>Menus.ctmenu</ResourceName>
+    </VSCTCompile>
+    <Content Include="Resources\LintCommand.png" />
     <Content Include="Resources\LintersPackage.ico" />
   </ItemGroup>
   <ItemGroup>

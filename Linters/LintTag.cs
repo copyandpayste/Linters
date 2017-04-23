@@ -10,7 +10,7 @@
 
         public LintTag(ITrackingSpan trackingSpan, string toolTip)
         {
-            this.TrackingSpan = trackingSpan;
+            TrackingSpan = trackingSpan;
             this.toolTip = toolTip;
         }
 
@@ -26,7 +26,7 @@
         {
             get
             {
-                return this.toolTip;
+                return toolTip;
             }
         }
 

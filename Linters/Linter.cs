@@ -22,10 +22,11 @@ namespace Linters
 
         protected abstract void ParseErrors(string output);
 
-        public ErrorListProvider Provider { get; set; }
+        public LintErrorProvider Provider { get; set; }
 
+
+        //TODO: change to async
         public void Run(Project project) {
-
             var directory = Path.GetDirectoryName(project.FullName);
 
             //check if projeect has .ts files
@@ -42,8 +43,8 @@ namespace Linters
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
-                CreateNoWindow = false,
-                WindowStyle = ProcessWindowStyle.Normal,
+                CreateNoWindow = true,
+                WindowStyle = ProcessWindowStyle.Hidden,
                 FileName = "cmd.exe",
                 Arguments = "/c " + Command
             };
@@ -56,6 +57,7 @@ namespace Linters
 
             process.Exited += (sender, args) =>
             {
+                Provider.ClearErrors();
                 ParseErrors(outputBuilder.ToString());
                 process.Dispose();
             };

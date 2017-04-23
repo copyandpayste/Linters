@@ -11,8 +11,9 @@ namespace Linters
 {
     class TsLinter : Linter
     {
-        public TsLinter(ErrorListProvider provider)
+        public TsLinter(LintErrorProvider provider)
         {
+            Provider = provider;
             Name = "TSLint";
             Command = "tslint --help";
             ConfigFileName = "tslint.json";

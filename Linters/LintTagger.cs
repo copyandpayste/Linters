@@ -14,7 +14,7 @@ internal class LintTagger : ITagger<IErrorTag>
 
     private ITextBuffer buffer;
 
-    private ErrorListProvider errorListProvider;
+    private LintErrorProvider errorListProvider;
 
     private string fileName;
 
@@ -22,16 +22,17 @@ internal class LintTagger : ITagger<IErrorTag>
 
     private CancellationTokenSource cancellationTokenSource;
 
-    public LintTagger(ITextBuffer buffer, ErrorListProvider errorListProvider, string fileName)
+    public LintTagger(ITextBuffer buffer, LintErrorProvider errorListProvider, string fileName)
     {
         this.buffer = buffer;
         this.errorListProvider = errorListProvider;
         this.fileName = fileName;
 
-        this.tags = new List<LintTag>();
-        this.PopulateTags();
+        tags = new List<LintTag>();
+        PopulateTags();
 
-        this.buffer.Changed += this.OnBufferChanged;
+        this.buffer.Changed += OnBufferChanged;
+        this.errorListProvider.Changed += OnErrorListChange;
     }
 
     public event EventHandler<SnapshotSpanEventArgs> TagsChanged;
@@ -40,11 +41,11 @@ internal class LintTagger : ITagger<IErrorTag>
     {
         var list = new List<TagSpan<IErrorTag>>();
 
-        if (this.tags.Count > 0)
+        if (tags.Count > 0)
         {
             foreach (var snapshotSpan in snapshotSpans)
             {
-                foreach (var tag in this.tags)
+                foreach (var tag in tags)
                 {
                     var snapshot = snapshotSpan.Snapshot;
                     var span = tag.TrackingSpan.GetSpan(snapshot);
@@ -86,15 +87,15 @@ internal class LintTagger : ITagger<IErrorTag>
 
     private void OnErrorListChange(object sender, EventArgs e)
     {
-        if (this.IsRelevant(e))
+        if (IsRelevant(e))
         {
-            this.PopulateTags();
+            PopulateTags();
 
-            var handler = this.TagsChanged;
+            var handler = TagsChanged;
 
             if (handler != null)
             {
-                var snapshot = this.buffer.CurrentSnapshot;
+                var snapshot = buffer.CurrentSnapshot;
                 var span = new SnapshotSpan(snapshot, new Span(0, snapshot.Length));
 
                 handler(this, new SnapshotSpanEventArgs(span));
@@ -104,13 +105,14 @@ internal class LintTagger : ITagger<IErrorTag>
 
     private void OnBufferChanged(object sender, TextContentChangedEventArgs e)
     {
-        if (this.cancellationTokenSource != null)
+
+        if (cancellationTokenSource != null)
         {
-            this.cancellationTokenSource.Cancel();
+            cancellationTokenSource.Cancel();
         }
 
-        this.cancellationTokenSource = new CancellationTokenSource();
-        this.UpdateErrorsWithDelay(e.After, this.cancellationTokenSource.Token);
+        cancellationTokenSource = new CancellationTokenSource();
+        UpdateErrorsWithDelay(e.After, cancellationTokenSource.Token);
     }
 
     private void UpdateErrorsWithDelay(ITextSnapshot snapshot, CancellationToken token)
@@ -124,7 +126,7 @@ internal class LintTagger : ITagger<IErrorTag>
                 return;
             }
 
-            this.TagsChanged?.Invoke(this, new SnapshotSpanEventArgs(new SnapshotSpan(snapshot, 0, snapshot.Length)));
+            TagsChanged?.Invoke(this, new SnapshotSpanEventArgs(new SnapshotSpan(snapshot, 0, snapshot.Length)));
         }, token);
     }
 
@@ -144,27 +146,22 @@ internal class LintTagger : ITagger<IErrorTag>
 
     private void PopulateTags()
     {
-        this.tags.Clear();
+        tags.Clear();
 
-        //IEnumerable<object> errors = null; //this.errorListProvider.GetErrors(this.fileName);
-        var snapshot = this.buffer.CurrentSnapshot;
+        IList<ErrorTask> errors = this.errorListProvider.GetErrors(this.fileName);
+        var snapshot = buffer.CurrentSnapshot;
 
-        var error = new ErrorTask();
-        error.Text = "test error";
-        error.Line = 0;
-        error.Column = 0;
-
-        //foreach (var error in errors)
-        //{
-        //    if (error.Line > snapshot.LineCount)
-        //    {
-        //        continue;
-        //    }
+        foreach (var error in errors)
+        {
+            if (error.Line > snapshot.LineCount)
+            {
+                continue;
+            }
 
             var errorSpan = GetErrorSpan(snapshot, error);
             var trackingSpan = snapshot.CreateTrackingSpan(errorSpan, SpanTrackingMode.EdgeInclusive);
 
-            this.tags.Add(new LintTag(trackingSpan, error.Text));
-        //}
+            tags.Add(new LintTag(trackingSpan, error.Text));
+        }
     }
 }

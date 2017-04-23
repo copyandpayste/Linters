@@ -11,8 +11,8 @@
     [TagType(typeof(IErrorTag))]
     internal class LintTaggerProvider : ITaggerProvider
     {
-        [Import(typeof(ErrorListProvider))]
-        public ErrorListProvider ErrorListProvider { get; set; }
+        [Import(typeof(LintErrorProvider))]
+        public LintErrorProvider ErrorListProvider { get; set; }
 
         public ITagger<T> CreateTagger<T>(ITextBuffer buffer)
             where T : ITag
@@ -22,7 +22,7 @@
             if (doc != null)
             {
                 var fileName = doc.FilePath;
-                return buffer.Properties.GetOrCreateSingletonProperty(() => (ITagger<T>)new LintTagger(buffer, this.ErrorListProvider, fileName));
+                return buffer.Properties.GetOrCreateSingletonProperty(() => (ITagger<T>)new LintTagger(buffer, ErrorListProvider, fileName));
             }
 
             return null;

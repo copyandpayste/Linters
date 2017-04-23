@@ -44,6 +44,7 @@ namespace Linters
     [InstalledProductRegistration("#110", "#112", "1.0", IconResourceID = 400)] // Info on this package for Help/About
     [ProvideAutoLoad(UIContextGuids80.SolutionExists)]
     [Guid(LintersPackage.PackageGuidString)]
+    [ProvideMenuResource("Menus.ctmenu", 1)]
     public sealed class LintersPackage : Package
     {
         /// <summary>
@@ -62,8 +63,8 @@ namespace Linters
             // initialization is the Initialize method.
         }
 
-        [Export(typeof(ErrorListProvider))]
-        internal static ErrorListProvider CurrentErrorListProvider { get; private set; }
+        [Export(typeof(LintErrorProvider))]
+        internal static LintErrorProvider CurrentErrorListProvider { get; private set; }
 
         private DTE dte;
 
@@ -77,39 +78,55 @@ namespace Linters
         {
             base.Initialize();
 
-            CurrentErrorListProvider = new ErrorListProvider(this);
+            CurrentErrorListProvider = new LintErrorProvider(this);
             dte = (DTE)GetService(typeof(DTE));
             solution = dte.Solution;
 
             // Delay execution until VS is idle.
-            Dispatcher.CurrentDispatcher.BeginInvoke(new Action(() =>
+            //Dispatcher.CurrentDispatcher.BeginInvoke(new Action(() =>
+            //{
+            //    // Then execute in a background thread.
+            //    System.Threading.Tasks.Task.Run(async () =>
+            //    {
+            //        try
+            //        {
+            //            await LintAsync();
+            //        }
+            //        catch (Exception ex)
+            //        {
+            //            Logger.Log(ex);
+            //        }
+            //    });
+            //}), DispatcherPriority.ApplicationIdle, null);
+            LintCommand.Initialize(this);
+        }
+
+        public async System.Threading.Tasks.Task LintAsync()
+        {
+            try
             {
-                // Then execute in a background thread.
-                System.Threading.Tasks.Task.Run(async () =>
-                {
+                await System.Threading.Tasks.Task.Run(() => {
                     try
                     {
-                        await LintAsync();
+                        //TODO: use separate provider for each project/linter
+                        foreach (Project project in solution.Projects)
+                        {
+                            //var tsLinter = new TsLinter(CurrentErrorListProvider);
+                            var styleLinter = new StyleLinter(CurrentErrorListProvider);
+                            //tsLinter.Run(project);
+                            styleLinter.Run(project);
+                        }
                     }
                     catch (Exception ex)
                     {
                         Logger.Log(ex);
                     }
                 });
-            }), DispatcherPriority.ApplicationIdle, null);
-        }
-
-        public async System.Threading.Tasks.Task LintAsync()
-        {
-            await System.Threading.Tasks.Task.Run(() => {
-                foreach (Project project in solution.Projects)
-                {
-                    //var tsLinter = new TsLinter(CurrentErrorListProvider);
-                    var styleLinter = new StyleLinter(CurrentErrorListProvider);
-                    //tsLinter.Run(project);
-                    styleLinter.Run(project);
-                }
-            });
+            }
+            catch (Exception ex)
+            {
+                Logger.Log(ex);
+            }
         }
     }
 }

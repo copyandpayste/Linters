@@ -11,8 +11,9 @@ namespace Linters
 {
     class StyleLinter : Linter
     {
-        public StyleLinter(ErrorListProvider provider)
+        public StyleLinter(LintErrorProvider provider)
         {
+            Provider = provider;
             Name = "StyleLint";
             Command = "stylelint **.scss --formatter json";
             ConfigFileName = ".stylelintrc";
@@ -25,21 +26,27 @@ namespace Linters
 
             foreach (JObject obj in array)
             {
-                string fileName = obj["name"]?.Value<string>().Replace("/", "\\");
+                string fileName = obj["source"]?.Value<string>().Replace("/", "\\");
 
                 if (string.IsNullOrEmpty(fileName))
                     continue;
 
-                var error = new ErrorTask();
-                error.Text = obj["failure"]?.Value<string>();
-                error.Line = obj["startPosition"]?["line"]?.Value<int>() ?? 0;
-                error.Column = obj["startPosition"]?["character"]?.Value<int>() ?? 0;
-                error.Document = fileName;
-                error.ErrorCategory = TaskErrorCategory.Warning;
-                error.HelpKeyword = obj["ruleName"]?.Value<string>();
-                //error.HelpLink = $"https://github.com/palantir/tslint?rule={le.ErrorCode}#supported-rules";
-                Provider.Tasks.Add(error);
-                Provider.Show();
+                JArray warnings = obj["warnings"]?.Value<JArray>();
+                foreach (JObject warning in warnings)
+                {
+                    var error = new ErrorTask()
+                    {
+                        Text = warning["text"]?.Value<string>(),
+                        Line = warning["line"]?.Value<int>() ?? 0,
+                        Column = warning["column"]?.Value<int>() ?? 0,
+                        Document = fileName,
+                        ErrorCategory = TaskErrorCategory.Warning,
+                        HelpKeyword = warning["rule"]?.Value<string>()
+                    };
+                    error.Navigate += Provider.OnTaskNavigate;
+                    //error.HelpLink = $"https://github.com/palantir/tslint?rule={le.ErrorCode}#supported-rules";
+                    Provider.Tasks.Add(error);
+                }
             }
         }
     }
