@@ -14,32 +14,23 @@ namespace Linters
 {
     public class LintErrorProvider : ErrorListProvider
     {
-        private IServiceProvider serviceProvider;
+        public IServiceProvider ServiceProvider { get; set; }
 
-        private DTE2 environment;
+        public DTE2 Environment { get; set; }
 
-        private IVsTextManager textManager;
+        public IVsTextManager TextManager { get; set; }
 
         public event EventHandler Changed;
 
         public LintErrorProvider(IServiceProvider serviceProvider)
             : base(serviceProvider)
         {
-            this.serviceProvider = serviceProvider;
-
-            environment = this.serviceProvider.GetService<DTE, DTE2>();
-            textManager = this.serviceProvider.GetService<VsTextManagerClass, IVsTextManager>();
+            ServiceProvider = serviceProvider;
+            Environment = ServiceProvider.GetService<DTE, DTE2>();
+            TextManager = ServiceProvider.GetService<VsTextManagerClass, IVsTextManager>();
         }
 
-        public int ErrorCount
-        {
-            get
-            {
-                return Tasks.Count;
-            }
-        }
-
-        public IList<ErrorTask> GetErrors(params string[] fileNames)
+        public List<ErrorTask> GetErrors(params string[] fileNames)
         {
             return Tasks
                 .OfType<ErrorTask>()
@@ -47,7 +38,7 @@ namespace Linters
                 .ToList();
         }
 
-        public IList<ErrorTask> GetErrors(Project project)
+        public List<ErrorTask> GetErrors(Project project)
         {
             return Tasks
                 .OfType<ErrorTask>()
@@ -55,17 +46,26 @@ namespace Linters
                 .ToList();
         }
 
-        public IList<ErrorTask> GetErrors()
+        public List<ErrorTask> GetErrors()
         {
             return Tasks
                 .OfType<ErrorTask>()
                 .Where(x => true)
                 .ToList();
+        }
+
+        public void AddErrors(params ErrorTask[] errors) {
+            SuspendRefresh();
+            foreach (ErrorTask error in errors) {
+                Tasks.Add(error);
+            }
+            ResumeRefresh();
+            OnChanged(EventArgs.Empty);
         }
 
         public void ClearErrors(params string[] fileNames)
         {
-            IList<ErrorTask> tasks;
+            List<ErrorTask> tasks;
             if (fileNames == null || fileNames.Length == 0)
             {
                 tasks = GetErrors();
@@ -146,10 +146,10 @@ namespace Linters
             return false;
         }
 
-        private IList<ErrorItem> GetExistingErrors(string fileName)
+        private List<ErrorItem> GetExistingErrors(string fileName)
         {
             var list = new List<ErrorItem>();
-            var errorItems = environment.ToolWindows.ErrorList.ErrorItems;
+            var errorItems = Environment.ToolWindows.ErrorList.ErrorItems;
 
             if (errorItems.Count > 0)
             {
@@ -167,12 +167,16 @@ namespace Linters
             return list;
         }
 
+        public void OnChanged(EventArgs e) {
+            Changed?.Invoke(this, e);
+        }
+
         public void OnTaskNavigate(object sender, EventArgs e)
         {
             var task = (ErrorTask)sender;
 
             IVsWindowFrame windowFrame;
-            if (!TryGetWindowFrame(serviceProvider, task.Document, out windowFrame))
+            if (!TryGetWindowFrame(ServiceProvider, task.Document, out windowFrame))
             {
                 return;
             }
@@ -185,7 +189,7 @@ namespace Linters
 
             var viewKind = new Guid(EnvironmentConstants.vsViewKindTextView);
 
-            textManager.NavigateToLineAndColumn(
+            TextManager.NavigateToLineAndColumn(
                 textLines,
                 ref viewKind,
                 task.Line,

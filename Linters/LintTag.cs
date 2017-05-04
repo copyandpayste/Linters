@@ -8,9 +8,8 @@
     {
         private string toolTip;
 
-        public LintTag(ITrackingSpan trackingSpan, string toolTip)
+        public LintTag(string toolTip)
         {
-            TrackingSpan = trackingSpan;
             this.toolTip = toolTip;
         }
 
@@ -29,7 +28,5 @@
                 return toolTip;
             }
         }
-
-        public ITrackingSpan TrackingSpan { get; private set; }
     }
 }

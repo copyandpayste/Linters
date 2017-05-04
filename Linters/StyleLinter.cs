@@ -34,18 +34,25 @@ namespace Linters
                 JArray warnings = obj["warnings"]?.Value<JArray>();
                 foreach (JObject warning in warnings)
                 {
+                    int? line = warning["line"]?.Value<int>();
+                    if (line != null) line -= 1;
+
+                    int? column = warning["column"]?.Value<int>();
+                    if (column != null) column -= 1;
+
                     var error = new ErrorTask()
                     {
                         Text = warning["text"]?.Value<string>(),
-                        Line = warning["line"]?.Value<int>() ?? 0,
-                        Column = warning["column"]?.Value<int>() ?? 0,
+                        Line = line ?? 0,
+                        Column = column ?? 0,
                         Document = fileName,
                         ErrorCategory = TaskErrorCategory.Warning,
                         HelpKeyword = warning["rule"]?.Value<string>()
                     };
+                    
                     error.Navigate += Provider.OnTaskNavigate;
                     //error.HelpLink = $"https://github.com/palantir/tslint?rule={le.ErrorCode}#supported-rules";
-                    Provider.Tasks.Add(error);
+                    Provider.AddErrors(error);
                 }
             }
         }

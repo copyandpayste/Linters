@@ -24,47 +24,52 @@ namespace Linters
 
         public LintErrorProvider Provider { get; set; }
 
-
-        //TODO: change to async
         public void Run(Project project) {
-            var directory = Path.GetDirectoryName(project.FullName);
-
-            //check if projeect has .ts files
-
-            //check if project has tsconfig.json
-
-            //run tslint
-            var process = new System.Diagnostics.Process();
-            
-            process.EnableRaisingEvents = true;
-            process.StartInfo = new ProcessStartInfo
+            try
             {
-                WorkingDirectory = directory,
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true,
-                WindowStyle = ProcessWindowStyle.Hidden,
-                FileName = "cmd.exe",
-                Arguments = "/c " + Command
-            };
+                var directory = Path.GetDirectoryName(project.FullName);
 
-            var outputBuilder = new StringBuilder();
-            var errorBuilder = new StringBuilder();
+                //check if projeect has .ts files
 
-            process.OutputDataReceived += (s, e) => outputBuilder.AppendLine(e.Data);
-            process.ErrorDataReceived += (s, e) => errorBuilder.AppendLine(e.Data);
+                //check if project has tsconfig.json
 
-            process.Exited += (sender, args) =>
+                //run tslint
+                var process = new System.Diagnostics.Process();
+
+                process.EnableRaisingEvents = true;
+                process.StartInfo = new ProcessStartInfo
+                {
+                    WorkingDirectory = directory,
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true,
+                    WindowStyle = ProcessWindowStyle.Hidden,
+                    FileName = "cmd.exe",
+                    Arguments = "/c " + Command
+                };
+
+                var outputBuilder = new StringBuilder();
+                var errorBuilder = new StringBuilder();
+
+                process.OutputDataReceived += (s, e) => outputBuilder.AppendLine(e.Data);
+                process.ErrorDataReceived += (s, e) => errorBuilder.AppendLine(e.Data);
+
+                process.Exited += (sender, args) =>
+                {
+                    Provider.ClearErrors();
+                    ParseErrors(outputBuilder.ToString());
+                    process.Dispose();
+                };
+
+                process.Start();
+                process.BeginOutputReadLine();
+                process.BeginErrorReadLine();
+            }
+            catch (Exception e)
             {
-                Provider.ClearErrors();
-                ParseErrors(outputBuilder.ToString());
-                process.Dispose();
-            };
-
-            process.Start();
-            process.BeginOutputReadLine();
-            process.BeginErrorReadLine();
+                Debug.Print(e.ToString());
+            }
         }
     }
 }

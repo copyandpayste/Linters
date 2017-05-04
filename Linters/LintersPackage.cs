@@ -81,23 +81,6 @@ namespace Linters
             CurrentErrorListProvider = new LintErrorProvider(this);
             dte = (DTE)GetService(typeof(DTE));
             solution = dte.Solution;
-
-            // Delay execution until VS is idle.
-            //Dispatcher.CurrentDispatcher.BeginInvoke(new Action(() =>
-            //{
-            //    // Then execute in a background thread.
-            //    System.Threading.Tasks.Task.Run(async () =>
-            //    {
-            //        try
-            //        {
-            //            await LintAsync();
-            //        }
-            //        catch (Exception ex)
-            //        {
-            //            Logger.Log(ex);
-            //        }
-            //    });
-            //}), DispatcherPriority.ApplicationIdle, null);
             LintCommand.Initialize(this);
         }
 
